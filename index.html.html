@@ -1,0 +1,507 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>The Nudge Room</title>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/10.7.1/firebase-database-compat.js"></script>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=Fraunces:ital,opsz,wght@0,9..144,300;0,9..144,600;1,9..144,400&family=Spectral:ital,wght@0,300;0,400&family=Space+Mono&display=swap');
+
+:root {
+  --bg:#0F1219; --card:#171D2B; --border:#252D40;
+  --text:#E8E4D9; --muted:#6B7591; --dim:#2A3248;
+  --amber:#F0A500; --amberbg:rgba(240,165,0,0.1);
+  --green:#3DC9A0; --coral:#E8704A; --blue:#4B7BF5;
+  --paper:#F5F0E8; --paperdk:#EDE7D9; --forest:#2D5016;
+  --ink:#1A1A1A; --soft:#4A4A4A; --bp:#D4CAB8; --mist:#B0A090;
+}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:'Spectral',serif;background:var(--bg);color:var(--text);min-height:100vh}
+button{cursor:pointer;border:none;font-family:inherit}
+@keyframes dot{0%,100%{opacity:.3;transform:scale(.7)}50%{opacity:1;transform:scale(1)}}
+@keyframes pulse{0%,100%{box-shadow:0 0 0 0 rgba(240,165,0,.5)}50%{box-shadow:0 0 0 10px rgba(240,165,0,0)}}
+@keyframes fadein{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+.fadein{animation:fadein .4s ease}
+
+/* ── Role Select ── */
+#role-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:100vh;padding:32px 20px;text-align:center}
+.nr-eyebrow{font-family:'Fraunces',serif;font-style:italic;font-size:13px;color:var(--amber);letter-spacing:.2em;text-transform:uppercase;margin-bottom:18px}
+.nr-title{font-family:'Fraunces',serif;font-weight:600;font-size:32px;color:var(--text);line-height:1.2;max-width:480px;margin-bottom:12px}
+.nr-sub{color:var(--muted);font-size:15px;font-weight:300;line-height:1.7;max-width:380px;margin-bottom:48px}
+.role-btns{display:flex;gap:14px;flex-wrap:wrap;justify-content:center}
+.btn-primary{padding:15px 36px;background:var(--amber);color:#0F1219;border-radius:8px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.08em;font-weight:bold;transition:opacity .15s}
+.btn-primary:hover{opacity:.88}
+.btn-ghost{padding:15px 36px;background:transparent;color:var(--muted);border:1px solid var(--border);border-radius:8px;font-family:'Space Mono',monospace;font-size:12px;letter-spacing:.08em;transition:all .15s}
+.btn-ghost:hover{border-color:var(--muted);color:var(--text)}
+
+/* ── Participant ── */
+#participant-screen{display:none;flex-direction:column;align-items:center;min-height:100vh;padding:28px 20px 60px}
+.p-inner{width:100%;max-width:520px}
+.round-bar{display:flex;align-items:center;gap:8px;margin-bottom:22px}
+.rb-seg{height:3px;flex:1;border-radius:2px;transition:background .3s}
+.rb-num{font-family:'Space Mono',monospace;font-size:9px;color:var(--muted);white-space:nowrap;letter-spacing:.06em}
+.p-eyebrow{font-family:'Space Mono',monospace;font-size:9px;color:var(--amber);letter-spacing:.15em;text-transform:uppercase;margin-bottom:8px}
+.p-scenario{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:20px 22px;margin-bottom:18px;color:var(--text);font-size:15px;line-height:1.75;font-weight:300}
+.p-question{font-family:'Fraunces',serif;font-weight:300;font-size:17px;color:var(--text);margin-bottom:16px}
+.options{display:flex;flex-direction:column;gap:8px;margin-bottom:18px}
+.opt-btn{padding:12px 18px;border-radius:8px;border:1.5px solid var(--border);background:var(--card);color:var(--text);font-family:'Spectral',serif;font-size:14px;text-align:left;transition:all .15s}
+.opt-btn:hover:not(:disabled){border-color:var(--amber);background:var(--amberbg)}
+.opt-btn.selected{border-color:var(--amber);background:var(--amberbg);color:var(--amber)}
+.opt-btn:disabled{cursor:default}
+.hint-btn{width:100%;padding:11px 0;border-radius:8px;border:1px solid var(--amber);background:transparent;color:var(--amber);font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.1em;margin-bottom:12px;transition:background .15s}
+.hint-btn:hover{background:var(--amberbg)}
+.hint-btn.pulsing{animation:pulse 1.5s ease-in-out 3}
+.hint-box{background:var(--amberbg);border:1px solid rgba(240,165,0,.3);border-radius:8px;padding:14px 16px;margin-bottom:12px}
+.hint-tag{font-family:'Space Mono',monospace;font-size:8px;color:var(--amber);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.hint-text{color:var(--text);font-size:13px;line-height:1.7;margin-bottom:8px}
+.hint-src{font-family:'Space Mono',monospace;font-size:8px;color:var(--muted)}
+.submit-btn{width:100%;padding:13px 0;border-radius:8px;background:var(--forest);color:var(--paper);font-family:'Space Mono',monospace;font-size:11px;letter-spacing:.1em;transition:background .15s}
+.submit-btn:disabled{background:var(--dim);cursor:default;color:var(--muted)}
+.submitted-msg{text-align:center;padding:12px 0;font-family:'Space Mono',monospace;font-size:10px;color:var(--green);letter-spacing:.08em}
+.waiting-screen{display:flex;flex-direction:column;align-items:center;justify-content:center;min-height:80vh;text-align:center;gap:16px}
+.waiting-title{font-family:'Fraunces',serif;font-style:italic;font-size:28px;color:var(--amber)}
+.waiting-sub{color:var(--muted);font-size:14px;line-height:1.7;max-width:300px;font-weight:300}
+.dots{display:flex;gap:6px;justify-content:center;margin-top:8px}
+.dot{width:8px;height:8px;border-radius:50%;background:var(--amber);animation:dot 1.2s ease-in-out infinite}
+.dot:nth-child(2){animation-delay:.2s}.dot:nth-child(3){animation-delay:.4s}
+.done-box{background:var(--card);border:1px solid var(--border);border-radius:10px;padding:16px 20px;margin-top:20px;text-align:left}
+.done-label{font-family:'Space Mono',monospace;font-size:8px;color:var(--muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:6px}
+.done-choice{color:var(--text);font-size:14px;margin-bottom:6px}
+.done-hint{font-family:'Space Mono',monospace;font-size:9px}
+
+/* ── Presenter ── */
+#presenter-screen{display:none;height:100vh;background:var(--paper);font-family:'Spectral',serif;color:var(--ink)}
+.pr-layout{display:flex;height:100%}
+.pr-sidebar{width:240px;background:var(--paperdk);border-right:1px solid var(--bp);display:flex;flex-direction:column;padding:20px;flex-shrink:0}
+.pr-logo{font-family:'Fraunces',serif;font-weight:600;font-size:19px;color:var(--forest);margin-bottom:4px}
+.pr-logo-sub{font-family:'Space Mono',monospace;font-size:8px;color:var(--mist);letter-spacing:.12em;text-transform:uppercase;margin-bottom:24px}
+.stat-box{background:rgba(45,80,22,.08);border:1px solid rgba(45,80,22,.15);border-radius:8px;padding:10px 14px;margin-bottom:16px}
+.stat-label{font-family:'Space Mono',monospace;font-size:8px;color:var(--mist);text-transform:uppercase;letter-spacing:.1em;margin-bottom:2px}
+.stat-val{font-family:'Fraunces',serif;font-size:28px;color:var(--forest);font-weight:600}
+.pr-round-info{font-family:'Space Mono',monospace;font-size:9px;color:var(--soft);margin-bottom:6px}
+.pr-phase{font-family:'Space Mono',monospace;font-size:9px;margin-bottom:20px}
+.ctrl-btn{width:100%;padding:10px 14px;border-radius:7px;font-family:'Space Mono',monospace;font-size:10px;letter-spacing:.06em;text-align:left;margin-bottom:8px;transition:opacity .15s}
+.ctrl-btn:hover{opacity:.85}
+.ctrl-green{background:var(--forest);color:var(--paper)}
+.ctrl-outline{background:transparent;color:var(--mist);border:1px solid var(--bp)}
+.ctrl-red{background:#8B1C1C;color:#fff}
+.hint-summary{margin-top:20px}
+.hs-label{font-family:'Space Mono',monospace;font-size:8px;color:var(--mist);text-transform:uppercase;letter-spacing:.1em;margin-bottom:8px}
+.hs-row{margin-bottom:8px}
+.hs-top{display:flex;justify-content:space-between;font-family:'Space Mono',monospace;font-size:9px;color:var(--soft);margin-bottom:3px}
+.hs-bar-bg{height:4px;background:var(--bp);border-radius:2px;overflow:hidden}
+.hs-bar-fill{height:100%;border-radius:2px;transition:width .5s}
+.pr-main{flex:1;padding:26px 28px;overflow-y:auto}
+.pr-header{display:flex;justify-content:space-between;align-items:flex-start;margin-bottom:22px}
+.pr-round-title{font-family:'Fraunces',serif;font-weight:300;font-size:22px;color:var(--ink)}
+.pr-round-q{font-family:'Spectral',serif;font-weight:300;font-size:13px;color:var(--mist);margin-top:4px;max-width:500px}
+.pr-hint-stat{text-align:right}
+.pr-hint-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--mist);margin-bottom:2px}
+.pr-hint-val{font-family:'Fraunces',serif;font-size:36px;font-weight:600}
+.chart-box{background:#fff;border:1px solid var(--bp);border-radius:10px;padding:20px 22px;margin-bottom:18px}
+.chart-label{font-family:'Space Mono',monospace;font-size:9px;color:var(--mist);text-transform:uppercase;letter-spacing:.1em;margin-bottom:16px}
+.chart-row{margin-bottom:12px}
+.chart-top{display:flex;justify-content:space-between;margin-bottom:4px}
+.chart-opt{font-family:'Spectral',serif;font-size:13px;color:var(--ink)}
+.chart-count{font-family:'Space Mono',monospace;font-size:10px;color:var(--mist)}
+.chart-bg{height:8px;background:#F0EBE0;border-radius:4px;overflow:hidden}
+.chart-fill{height:100%;background:var(--forest);border-radius:4px;transition:width .6s ease}
+.stats-grid{display:grid;grid-template-columns:repeat(3,1fr);gap:14px;margin-bottom:18px}
+.sg-box{background:#fff;border:1px solid var(--bp);border-radius:8px;padding:14px 16px}
+.sg-label{font-family:'Space Mono',monospace;font-size:8px;color:var(--mist);text-transform:uppercase;letter-spacing:.1em;margin-bottom:4px}
+.sg-val{font-family:'Fraunces',serif;font-size:22px;font-weight:600}
+.reveal-box{background:#fff;border:2px solid var(--coral);border-radius:10px;padding:22px 24px;display:none}
+.reveal-box.show{display:block}
+.reveal-title{font-family:'Fraunces',serif;font-style:italic;font-size:20px;color:var(--coral);margin-bottom:8px}
+.reveal-text{font-family:'Spectral',serif;font-size:14px;color:var(--ink);line-height:1.75;margin-bottom:16px}
+.reveal-bars{display:flex;gap:8px;align-items:flex-end;height:60px;margin-bottom:12px}
+.rb-col{flex:1;display:flex;flex-direction:column;align-items:center;gap:4px}
+.rb-bar{width:100%;border-radius:3px;min-height:4px;transition:height .8s}
+.rb-lbl{font-family:'Space Mono',monospace;font-size:8px;color:var(--mist)}
+.reveal-quote{font-family:'Spectral',serif;font-size:14px;color:var(--soft);line-height:1.75;font-style:italic;border-top:1px solid var(--bp);padding-top:14px;margin-top:4px}
+</style>
+</head>
+<body>
+
+<!-- Role Select -->
+<div id="role-screen">
+  <div class="nr-eyebrow">The Nudge Room</div>
+  <div class="nr-title">How do we make decisions when we think we're free?</div>
+  <div class="nr-sub">A live experiment. Five judgment calls. One hidden pattern.</div>
+  <div class="role-btns">
+    <button class="btn-primary" onclick="selectRole('participant')">I'M A PARTICIPANT</button>
+    <button class="btn-ghost" onclick="selectRole('presenter')">PRESENTER VIEW</button>
+  </div>
+</div>
+
+<!-- Participant -->
+<div id="participant-screen">
+  <div class="p-inner" id="p-content"></div>
+</div>
+
+<!-- Presenter -->
+<div id="presenter-screen">
+  <div class="pr-layout">
+    <div class="pr-sidebar">
+      <div class="pr-logo">Nudge Room</div>
+      <div class="pr-logo-sub">Presenter Controls</div>
+      <div class="stat-box">
+        <div class="stat-label">Active participants</div>
+        <div class="stat-val" id="pr-count">0</div>
+      </div>
+      <div class="pr-round-info" id="pr-round-info">Round 1 / 5</div>
+      <div class="pr-phase" id="pr-phase-info">Phase: waiting</div>
+      <div id="pr-controls"></div>
+      <div class="hint-summary" id="hint-summary"></div>
+    </div>
+    <div class="pr-main" id="pr-main"></div>
+  </div>
+</div>
+
+<script>
+// ── Firebase ──────────────────────────────────────────────────────────────────
+const firebaseConfig = {
+  apiKey: "AIzaSyDLiEjvfaYbxfbjzNoWZL4Xhhlc6gdPv6Q",
+  authDomain: "nudgeroom-9e71b.firebaseapp.com",
+  databaseURL: "https://nudgeroom-9e71b-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "nudgeroom-9e71b",
+  storageBucket: "nudgeroom-9e71b.firebasestorage.app",
+  messagingSenderId: "407941660856",
+  appId: "1:407941660856:web:95bcedcee9583f085cb44d"
+};
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
+const ROOT = 'nudgeroom';
+
+// ── Game data ─────────────────────────────────────────────────────────────────
+const ROUNDS = [
+  { id:1, title:'The Essay',
+    scenario:'A student submits a well-structured, clearly written essay. Every argument is clearly explained — but each point simply restates the lecture content with no independent analysis of their own.',
+    question:'What grade does this work deserve?',
+    options:['High Distinction','Distinction','Credit','Pass','Fail'],
+    hint:'Academic consensus: Most Australian university rubrics classify work that demonstrates understanding but lacks original contribution as Credit-level. Without independent analysis, High Distinction criteria are rarely met. This aligns with TEQSA threshold descriptors for graduate-level work.',
+    hintSource:'TEQSA Higher Education Standards Framework, 2021'
+  },
+  { id:2, title:'The AI Paradox',
+    scenario:'A large study finds students using AI writing assistants score 18% higher on assessments — but report 35% less time in independent thinking, and underperform on unseen tasks compared to non-AI users.',
+    question:'Should your university adopt AI writing tools for all students?',
+    options:['Yes — adopt fully','No — resist entirely','Pilot carefully','More research needed'],
+    hint:'Expert view (EDUCAUSE 2024): 71% of higher education researchers recommend structured pilot adoption with learning outcome monitoring, rather than blanket adoption or rejection. A minority advocate a moratorium pending longitudinal data on long-term learning impacts.',
+    hintSource:'EDUCAUSE Horizon Report 2024; OECD Education Policy Perspectives, 2024'
+  },
+  { id:3, title:'The Reframe',
+    scenario:"A PhD student's three-year dataset does not support their original hypothesis. Their supervisor suggests 'reframing the contribution' so the thesis reflects what the data actually shows, not what was proposed.",
+    question:'Is this acceptable research practice?',
+    options:['Yes — reframing is normal','No — this risks p-hacking','Acceptable if disclosed','Genuinely uncertain'],
+    hint:'Expert consensus: Post-hoc reframing is widely accepted when transparently disclosed. Most methodologists distinguish this from p-hacking when exploratory reanalysis is documented. The key criterion is whether the paper honestly represents the analytical sequence.',
+    hintSource:'Munafò et al., Nature Human Behaviour, 2017; APA Publication Manual, 7th Ed.'
+  },
+  { id:4, title:'The Marker',
+    scenario:'An AI system marks 200 student essays in 4 minutes with 91% agreement with experienced human markers. Human marking of the same batch takes three weeks and costs significantly more.',
+    question:'Should AI replace human marking in your faculty?',
+    options:['Yes — efficiency gain','No — humans must mark','AI first, human reviews','Only low-stakes tasks'],
+    hint:'Research finding: Studies across three UK universities found AI-assisted marking with mandatory human review maintained assessment validity while reducing turnaround by 78%. Most assessment researchers now support hybrid models for high-volume formative feedback.',
+    hintSource:'Bearman & Luckin, Assessment & Evaluation in Higher Education, 2023'
+  },
+  { id:5, title:'The Feedback',
+    scenario:'You have 20 minutes to write personal feedback for a PhD student who is genuinely struggling — emotionally and academically — with their thesis. They need your honest, considered response.',
+    question:'Do you use AI to help draft the feedback?',
+    options:['Yes — fully AI-drafted','Yes — AI draft, I revise','No — must be entirely mine','Depends on the student'],
+    hint:'Current practice: A 2024 survey of 340 academics found 67% now use AI to generate initial feedback drafts, with 89% reporting substantial revision before sending. Most argue AI assistance improves consistency without sacrificing authenticity.',
+    hintSource:'Bearman et al., Teaching in Higher Education, 2024'
+  }
+];
+
+// ── State ─────────────────────────────────────────────────────────────────────
+var role = null;
+var uid = sessionStorage.getItem('nr_uid') || (function(){ var id=Math.random().toString(36).slice(2,10); sessionStorage.setItem('nr_uid',id); return id; })();
+var gs = { round:1, phase:'waiting', revealed:false };
+var myResps = {};
+var choice = null;
+var hintSeen = false;
+var hintBefore = false;
+var submitted = false;
+var allResponses = {};
+var pCount = 0;
+var pulseTimer = null;
+
+// ── Firebase ops ──────────────────────────────────────────────────────────────
+function fbSet(path, val){ db.ref(ROOT+'/'+path).set(val); }
+function fbOn(path, cb){ db.ref(ROOT+'/'+path).on('value', function(s){ cb(s.val()); }); }
+
+// ── Role select ───────────────────────────────────────────────────────────────
+function selectRole(r){
+  role = r;
+  document.getElementById('role-screen').style.display = 'none';
+  if(r === 'participant'){
+    document.getElementById('participant-screen').style.display = 'flex';
+    startParticipant();
+  } else {
+    document.getElementById('presenter-screen').style.display = 'block';
+    startPresenter();
+  }
+}
+
+// ── Participant ───────────────────────────────────────────────────────────────
+function startParticipant(){
+  // Heartbeat
+  function beat(){ fbSet('heartbeats/'+uid, {ts: Date.now()}); }
+  beat(); setInterval(beat, 5000);
+
+  // Listen to game state
+  fbOn('control', function(val){
+    if(!val) return;
+    var prevRound = gs.round;
+    gs = val;
+    if(prevRound !== gs.round){
+      choice = null; hintSeen = false; hintBefore = false;
+      submitted = !!myResps[gs.round];
+    }
+    renderParticipant();
+  });
+}
+
+function renderParticipant(){
+  var el = document.getElementById('p-content');
+  var round = ROUNDS[gs.round-1];
+
+  if(gs.phase === 'waiting'){
+    el.innerHTML = '<div class="waiting-screen fadein"><div class="waiting-title">You\'re in.</div><div class="waiting-sub">Five judgment calls. No right or wrong answers. Just your honest view.</div><div class="dots"><div class="dot"></div><div class="dot"></div><div class="dot"></div></div></div>';
+    return;
+  }
+
+  if(gs.phase === 'done'){
+    var resp = myResps[gs.round] || myResps[gs.round-1];
+    el.innerHTML = '<div class="waiting-screen fadein"><div class="waiting-title">All done.</div><div class="waiting-sub">Watch the presenter screen — the pattern is about to be revealed.</div>'+(resp?'<div class="done-box"><div class="done-label">Your last response</div><div class="done-choice">'+resp.choice+'</div><div class="done-hint" style="color:'+(resp.usedHint?'#F0A500':'#3DC9A0')+'">'+( resp.usedHint?(resp.hintBefore?'⚡ Used expert hint before choosing':'⚡ Used expert hint after choosing'):'✓ No hint used')+'</div></div>':'')+'</div>';
+    return;
+  }
+
+  if(gs.phase === 'reveal'){
+    el.innerHTML = '<div class="waiting-screen fadein"><div class="waiting-title">Results revealed.</div><div class="waiting-sub">Watch the presenter screen now.</div></div>';
+    return;
+  }
+
+  // Playing
+  var submittedThis = submitted || !!myResps[gs.round];
+  var html = '';
+
+  // Round bar
+  html += '<div class="round-bar">';
+  for(var i=1;i<=5;i++){
+    var col = i < gs.round ? 'var(--amber)' : i===gs.round ? 'var(--amber)' : 'var(--dim)';
+    var op = i===gs.round ? 1 : i<gs.round ? 0.5 : 0.25;
+    html += '<div class="rb-seg" style="background:'+col+';opacity:'+op+'"></div>';
+  }
+  html += '<div class="rb-num">'+gs.round+'/5</div></div>';
+
+  html += '<div class="p-eyebrow fadein">Round '+gs.round+' — '+round.title+'</div>';
+  html += '<div class="p-scenario fadein">'+round.scenario+'</div>';
+  html += '<div class="p-question fadein">'+round.question+'</div>';
+  html += '<div class="options fadein">';
+  round.options.forEach(function(opt){
+    var sel = choice === opt ? ' selected' : '';
+    html += '<button class="opt-btn'+sel+'" '+(submittedThis?'disabled':'')+' onclick="selectChoice(\''+opt+'\')">'+opt+'</button>';
+  });
+  html += '</div>';
+
+  if(!hintSeen){
+    html += '<button class="hint-btn'+(pulseTimer?' pulsing':'') +'" id="hint-btn" onclick="showHint()">SEE WHAT EXPERTS THINK →</button>';
+  } else {
+    html += '<div class="hint-box fadein"><div class="hint-tag">Expert View</div><div class="hint-text">'+round.hint+'</div><div class="hint-src">Source: '+round.hintSource+'</div></div>';
+  }
+
+  if(!submittedThis){
+    html += '<button class="submit-btn" '+(choice?'':'disabled')+' onclick="submitResponse()">SUBMIT MY JUDGMENT</button>';
+  } else {
+    html += '<div class="submitted-msg">✓ Submitted — waiting for next round</div>';
+  }
+
+  el.innerHTML = html;
+
+  // Start pulse timer for hint button
+  if(!hintSeen && !pulseTimer){
+    pulseTimer = setTimeout(function(){
+      var btn = document.getElementById('hint-btn');
+      if(btn) btn.classList.add('pulsing');
+    }, 4000);
+  }
+}
+
+function selectChoice(opt){
+  if(submitted || myResps[gs.round]) return;
+  choice = opt;
+  renderParticipant();
+}
+
+function showHint(){
+  if(!hintSeen && !choice) hintBefore = true;
+  hintSeen = true;
+  if(pulseTimer){ clearTimeout(pulseTimer); pulseTimer = null; }
+  renderParticipant();
+}
+
+function submitResponse(){
+  if(!choice || submitted || myResps[gs.round]) return;
+  var resp = { choice:choice, usedHint:hintSeen, hintBefore:hintBefore, ts:Date.now() };
+  fbSet('responses/r'+gs.round+'/'+uid, resp);
+  myResps[gs.round] = resp;
+  submitted = true;
+  renderParticipant();
+}
+
+// ── Presenter ─────────────────────────────────────────────────────────────────
+function startPresenter(){
+  // Listen to control
+  fbOn('control', function(val){
+    if(val) gs = val;
+    renderPresenter();
+  });
+
+  // Listen to all responses
+  fbOn('responses', function(val){
+    allResponses = val || {};
+    renderPresenter();
+  });
+
+  // Count heartbeats
+  setInterval(function(){
+    db.ref(ROOT+'/heartbeats').once('value', function(snap){
+      var data = snap.val() || {};
+      var now = Date.now();
+      var count = 0;
+      Object.values(data).forEach(function(h){ if(h && now-h.ts < 15000) count++; });
+      pCount = count;
+      var el = document.getElementById('pr-count');
+      if(el) el.textContent = count;
+    });
+  }, 3000);
+
+  // Init game if not exists
+  db.ref(ROOT+'/control').once('value', function(snap){
+    if(!snap.val()) fbSet('control', {round:1, phase:'waiting', revealed:false});
+  });
+}
+
+function pSet(updates){
+  var newGs = Object.assign({}, gs, updates);
+  fbSet('control', newGs);
+}
+
+function getRoundData(r){
+  var rData = (allResponses['r'+r]) || {};
+  var round = ROUNDS[r-1];
+  var counts = {}; round.options.forEach(function(o){ counts[o]=0; });
+  var hN=0, hBN=0, tot=0;
+  Object.values(rData).forEach(function(v){
+    if(!v) return; tot++;
+    if(counts[v.choice]!==undefined) counts[v.choice]++;
+    if(v.usedHint){ hN++; if(v.hintBefore) hBN++; }
+  });
+  return {counts:counts, hN:hN, hBN:hBN, tot:tot};
+}
+
+function renderPresenter(){
+  var round = ROUNDS[gs.round-1];
+  var rd = getRoundData(gs.round);
+
+  // Round info
+  var ri = document.getElementById('pr-round-info');
+  var pi = document.getElementById('pr-phase-info');
+  if(ri) ri.textContent = 'Round '+gs.round+' / 5 — '+(round?round.title:'');
+  if(pi){
+    pi.textContent = 'Phase: '+gs.phase+' · '+rd.tot+' responses';
+    pi.style.color = gs.phase==='playing' ? '#2D9B4F' : '#B0A090';
+  }
+
+  // Controls
+  var ctrl = document.getElementById('pr-controls');
+  if(ctrl){
+    var btns = '';
+    if(gs.phase==='waiting') btns += '<button class="ctrl-btn ctrl-green" onclick="pSet({phase:\'playing\'})">▶ Start Round 1</button>';
+    if(gs.phase==='playing') btns += '<button class="ctrl-btn ctrl-green" onclick="pSet({phase:\'reveal\',revealed:true})">⬡ Reveal Results</button>';
+    if(gs.phase==='reveal' && gs.round<5) btns += '<button class="ctrl-btn ctrl-green" onclick="pSet({round:'+(gs.round+1)+',phase:\'playing\',revealed:false})">▶ Next: Round '+(gs.round+1)+'</button>';
+    if(gs.phase==='reveal' && gs.round===5) btns += '<button class="ctrl-btn ctrl-green" onclick="pSet({phase:\'done\'})">✓ End & Reveal Pattern</button>';
+    if(gs.phase!=='waiting') btns += '<button class="ctrl-btn ctrl-outline" onclick="resetGame()">↺ Reset</button>';
+    ctrl.innerHTML = btns;
+  }
+
+  // Hint summary sidebar
+  var hs = document.getElementById('hint-summary');
+  if(hs){
+    var hsHtml = '<div class="hs-label">Hint usage by round</div>';
+    for(var r=1;r<=5;r++){
+      var d = getRoundData(r);
+      var rate = d.tot>0 ? Math.round(d.hN/d.tot*100) : null;
+      var barColor = rate>60?'#E8704A':rate>30?'#C9A227':'#3DC9A0';
+      hsHtml += '<div class="hs-row"><div class="hs-top"><span>R'+r+' '+ROUNDS[r-1].title+'</span><span style="color:'+(rate!==null?barColor:'#B0A090')+'">'+(rate!==null?rate+'%':'—')+'</span></div>';
+      if(rate!==null) hsHtml += '<div class="hs-bar-bg"><div class="hs-bar-fill" style="width:'+rate+'%;background:'+barColor+'"></div></div>';
+      hsHtml += '</div>';
+    }
+    hs.innerHTML = hsHtml;
+  }
+
+  // Main content
+  var main = document.getElementById('pr-main');
+  if(!main) return;
+
+  var hintPct = rd.tot>0 ? Math.round(rd.hN/rd.tot*100) : null;
+  var hintColor = hintPct>50 ? '#E8704A' : '#C9A227';
+
+  var html = '<div class="pr-header"><div><div class="pr-round-title">'+(round?'Round '+gs.round+' — '+round.title:'')+'</div><div class="pr-round-q">'+(round?round.question:'')+'</div></div><div class="pr-hint-stat"><div class="pr-hint-label">Hint used this round</div><div class="pr-hint-val" style="color:'+(hintPct!==null?hintColor:'#B0A090')+'">'+(hintPct!==null?hintPct+'%':'—')+'</div></div></div>';
+
+  // Stats grid
+  html += '<div class="stats-grid">';
+  html += '<div class="sg-box"><div class="sg-label">Responses</div><div class="sg-val" style="color:var(--forest)">'+rd.tot+'</div></div>';
+  html += '<div class="sg-box"><div class="sg-label">Used hint</div><div class="sg-val" style="color:#C9A227">'+rd.hN+(rd.tot>0?' ('+Math.round(rd.hN/rd.tot*100)+'%)':'')+'</div></div>';
+  html += '<div class="sg-box"><div class="sg-label">Hint before choosing</div><div class="sg-val" style="color:#E8704A">'+rd.hBN+(rd.tot>0?' ('+Math.round(rd.hBN/rd.tot*100)+'%)':'')+'</div></div>';
+  html += '</div>';
+
+  // Bar chart
+  if(round){
+    html += '<div class="chart-box"><div class="chart-label">Response distribution — '+rd.tot+' responses</div>';
+    round.options.forEach(function(opt){
+      var count = rd.counts[opt]||0;
+      var pct = rd.tot>0 ? (count/rd.tot*100) : 0;
+      html += '<div class="chart-row"><div class="chart-top"><div class="chart-opt">'+opt+'</div><div class="chart-count">'+count+' ('+Math.round(pct)+'%)</div></div><div class="chart-bg"><div class="chart-fill" style="width:'+pct+'%"></div></div></div>';
+    });
+    html += '</div>';
+  }
+
+  // Reveal pattern
+  var hintRates = [];
+  for(var r=1;r<=5;r++){
+    var d=getRoundData(r);
+    hintRates.push(d.tot>0?Math.round(d.hN/d.tot*100):null);
+  }
+  var validRates = hintRates.filter(function(r){return r!==null});
+
+  html += '<div class="reveal-box'+(gs.phase==='done'&&validRates.length>=3?' show':'')+'">';
+  html += '<div class="reveal-title">The Pattern</div>';
+  html += '<div class="reveal-text">Look at how hint usage changed across the five rounds. You walked in with full confidence in your own judgment. By the end, most of you were checking expert opinion before committing — without deciding to.</div>';
+  html += '<div class="reveal-bars">';
+  hintRates.forEach(function(rate,i){
+    var h = rate!==null ? Math.max(rate,4) : 4;
+    var col = rate>60?'#E8704A':rate>30?'#C9A227':'#3DC9A0';
+    html += '<div class="rb-col"><div class="rb-bar" style="height:'+h+'%;background:'+(rate!==null?col:'#2A3248')+'"></div><div class="rb-lbl">R'+(i+1)+'</div></div>';
+  });
+  html += '</div>';
+  html += '<div class="reveal-quote">"You just experienced what your students experience every time they interact with an AI that has a hidden system prompt. You felt free. You weren\'t. Now you can see it — and that visibility is exactly what this research is about."</div>';
+  html += '</div>';
+
+  main.innerHTML = html;
+}
+
+function resetGame(){
+  if(!confirm('Reset all data and start over?')) return;
+  db.ref(ROOT).remove(function(){
+    fbSet('control', {round:1, phase:'waiting', revealed:false});
+    allResponses = {};
+    myResps = {};
+    renderPresenter();
+  });
+}
+</script>
+</body>
+</html>
