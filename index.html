@@ -132,8 +132,8 @@ button{cursor:pointer;border:none;font-family:inherit}
   <div class="nr-sub">A live experiment. Five judgment calls. One hidden pattern.</div>
   <div class="role-btns">
     <button class="btn-primary" onclick="selectRole('participant')">I'M A PARTICIPANT</button>
-    <button class="btn-ghost" onclick="selectRole('presenter')">PRESENTER VIEW</button>
   </div>
+  <button class="btn-ghost" style="margin-top:20px;font-size:10px;padding:8px 20px;opacity:0.6" onclick="selectRole('presenter')">Presenter access</button>
 </div>
 
 <!-- Participant -->
@@ -232,7 +232,17 @@ function fbSet(path, val){ db.ref(ROOT+'/'+path).set(val); }
 function fbOn(path, cb){ db.ref(ROOT+'/'+path).on('value', function(s){ cb(s.val()); }); }
 
 // ── Role select ───────────────────────────────────────────────────────────────
+var PRESENTER_CODE = 'saugat2026'; // change this to whatever you like
+
 function selectRole(r){
+  if(r === 'presenter'){
+    var code = prompt('Enter presenter passcode:');
+    if(code === null) return; // cancelled
+    if(code !== PRESENTER_CODE){
+      alert('Incorrect passcode. If you are a participant, tap "I\'m a Participant" instead.');
+      return;
+    }
+  }
   role = r;
   document.getElementById('role-screen').style.display = 'none';
   if(r === 'participant'){
